@@ -16,6 +16,26 @@
               </el-radio-group>
             </el-form-item>
             
+            <el-form-item label="选择客户">
+              <el-select 
+                v-model="transactionForm.customer" 
+                filterable 
+                remote 
+                :remote-method="searchCustomers" 
+                :loading="customerLoading" 
+                placeholder="请输入客户名称搜索"
+                style="width: 100%;"
+                clearable
+              >
+                <el-option
+                  v-for="item in customerOptions"
+                  :key="item.id"
+                  :label="item.name"
+                  :value="item.id"
+                />
+              </el-select>
+            </el-form-item>
+            
             <el-form-item label="选择商品" prop="product">
               <el-select 
                 v-model="transactionForm.product" 
@@ -58,6 +78,22 @@
               <el-input v-model="transactionForm.remarks" type="textarea" />
             </el-form-item>
             
+            <el-form-item label="制单人">
+              <el-input v-model="transactionForm.preparer" />
+            </el-form-item>
+            
+            <el-form-item label="审核人">
+              <el-input v-model="transactionForm.auditor" />
+            </el-form-item>
+            
+            <el-form-item label="经手人">
+              <el-input v-model="transactionForm.handler" />
+            </el-form-item>
+            
+            <el-form-item label="收货人">
+              <el-input v-model="transactionForm.receiver" />
+            </el-form-item>
+            
             <el-form-item>
               <el-button type="primary" @click="submitTransaction" :loading="submitting">提交</el-button>
               <el-button @click="resetForm">重置</el-button>
@@ -78,6 +114,34 @@
                   <el-option label="入库" value="IN" />
                   <el-option label="出库" value="OUT" />
                 </el-select>
+                <el-date-picker
+                  v-model="dateRange"
+                  type="daterange"
+                  range-separator="至"
+                  start-placeholder="开始日期"
+                  end-placeholder="结束日期"
+                  value-format="YYYY-MM-DD"
+                  style="width: 240px; margin-right: 10px;"
+                  @change="fetchTransactions"
+                />
+                <el-select 
+                  v-model="filterCustomer" 
+                  filterable 
+                  remote 
+                  :remote-method="searchCustomersForFilter" 
+                  :loading="customerLoading" 
+                  placeholder="选择客户"
+                  style="width: 150px; margin-right: 10px;"
+                  clearable
+                  @change="fetchTransactions"
+                >
+                  <el-option
+                    v-for="item in customerOptions"
+                    :key="item.id"
+                    :label="item.name"
+                    :value="item.id"
+                  />
+                </el-select>
                 <el-input v-model="searchKeyword" placeholder="搜索商品" style="width: 200px; margin-right: 10px;" @keyup.enter="fetchTransactions" />
                 <el-button type="primary" @click="fetchTransactions">搜索</el-button>
                 <el-button type="success" @click="printSelected" :disabled="selectedTransactions.length === 0" style="margin-left: 10px;">打印选中</el-button>
@@ -87,8 +151,10 @@
           
           <el-table :data="transactions" stripe style="width: 100%" v-loading="loading" height="400" @selection-change="handleSelectionChange">
             <el-table-column type="selection" width="55" />
+            <el-table-column prop="document_number" label="单据号码" width="150" />
             <el-table-column prop="product_id" label="商品编号" width="120" />
             <el-table-column prop="product_name" label="商品名称" width="150" />
+            <el-table-column prop="customer_name" label="客户" width="120" />
             <el-table-column label="操作类型" width="80">
               <template #default="scope">
                 <el-tag :type="scope.row.transaction_type === 'IN' ? 'success' : 'danger'">
@@ -138,11 +204,15 @@ const formRef = ref()
 const submitting = ref(false)
 const loading = ref(false)
 const productLoading = ref(false)
+const customerLoading = ref(false)
 const popularProducts = ref([])
 const searchResults = ref([])
+const customerOptions = ref([])
 const transactions = ref([])
 const searchKeyword = ref('')
 const filterType = ref('')
+const filterCustomer = ref('')
+const dateRange = ref([])
 const currentPage = ref(1)
 const pageSize = ref(10)
 const total = ref(0)
@@ -153,10 +223,15 @@ const emit = defineEmits(['selection-change'])
 
 const transactionForm = ref({
   product: null,
+  customer: null,
   transaction_type: 'IN',
   quantity: 1,
   unit_price: 0,
-  remarks: ''
+  remarks: '',
+  preparer: '',
+  auditor: '',
+  handler: '',
+  receiver: ''
 })
 
 const rules = {
@@ -192,6 +267,7 @@ watch(() => transactionForm.value.product, (newVal) => {
 
 onMounted(() => {
   fetchTransactions()
+  loadCustomerOptions()
 })
 
 // 加载热门商品
@@ -206,6 +282,41 @@ const loadPopularProducts = async () => {
   } catch (error) {
     ElMessage.error('加载热门商品失败：' + error.message)
   }
+}
+
+// 加载客户选项
+const loadCustomerOptions = async () => {
+  try {
+    const response = await axios.get('http://localhost:8000/api/customers/', {
+      params: { page_size: 100 }
+    })
+    customerOptions.value = response.data.results
+  } catch (error) {
+    ElMessage.error('加载客户选项失败：' + error.message)
+  }
+}
+
+const searchCustomers = async (query) => {
+  if (!query) {
+    loadCustomerOptions()
+    return
+  }
+  
+  try {
+    customerLoading.value = true
+    const response = await axios.get('http://localhost:8000/api/customers/', {
+      params: { search: query, page_size: 20 }
+    })
+    customerOptions.value = response.data.results
+  } catch (error) {
+    ElMessage.error('搜索客户失败：' + error.message)
+  } finally {
+    customerLoading.value = false
+  }
+}
+
+const searchCustomersForFilter = async (query) => {
+  await searchCustomers(query)
 }
 
 const searchProducts = async (query) => {
@@ -241,6 +352,15 @@ const fetchTransactions = async () => {
     
     if (filterType.value) {
       params.transaction_type = filterType.value
+    }
+    
+    if (filterCustomer.value) {
+      params.customer = filterCustomer.value
+    }
+    
+    if (dateRange.value && dateRange.value.length === 2) {
+      params.date_from = dateRange.value[0]
+      params.date_to = dateRange.value[1]
     }
     
     const response = await axios.get('http://localhost:8000/api/inventory-transactions/', { params })
@@ -284,10 +404,15 @@ const submitTransaction = async () => {
     
     const formData = {
       product: transactionForm.value.product,
+      customer: transactionForm.value.customer,
       transaction_type: transactionForm.value.transaction_type,
       quantity: transactionForm.value.quantity,
       unit_price: transactionForm.value.unit_price,
-      remarks: transactionForm.value.remarks
+      remarks: transactionForm.value.remarks,
+      preparer: transactionForm.value.preparer,
+      auditor: transactionForm.value.auditor,
+      handler: transactionForm.value.handler,
+      receiver: transactionForm.value.receiver
     }
     
     await axios.post('http://localhost:8000/api/inventory-transactions/', formData)
@@ -311,10 +436,15 @@ const resetForm = () => {
   const currentType = transactionForm.value.transaction_type
   transactionForm.value = {
     product: null,
+    customer: null,
     transaction_type: currentType, // 保持当前选择的操作类型
     quantity: 1,
     unit_price: 0,
-    remarks: ''
+    remarks: '',
+    preparer: '',
+    auditor: '',
+    handler: '',
+    receiver: ''
   }
 }
 
@@ -357,5 +487,12 @@ const formatDate = (dateString) => {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  flex-wrap: wrap;
+}
+
+.card-header > div {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
 }
 </style>

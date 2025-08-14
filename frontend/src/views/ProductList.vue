@@ -15,6 +15,8 @@
       <el-table :data="products" stripe style="width: 100%" v-loading="loading">
         <el-table-column prop="product_id" label="商品编号" width="150" />
         <el-table-column prop="name" label="商品名称" width="200" />
+        <el-table-column prop="specification" label="规格" width="120" />
+        <el-table-column prop="unit" label="单位" width="80" />
         <el-table-column prop="price" label="单价" width="120">
           <template #default="scope">
             ¥{{ scope.row.price }}

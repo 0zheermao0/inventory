@@ -14,6 +14,14 @@
           <el-input v-model="form.name" />
         </el-form-item>
         
+        <el-form-item label="规格">
+          <el-input v-model="form.specification" placeholder="例如：24个/件" />
+        </el-form-item>
+        
+        <el-form-item label="单位">
+          <el-input v-model="form.unit" placeholder="例如：件、箱、瓶" />
+        </el-form-item>
+        
         <el-form-item label="单价" prop="price">
           <el-input-number v-model="form.price" :min="0" :step="0.01" controls-position="right" style="width: 100%;" />
         </el-form-item>
@@ -50,6 +58,8 @@ const submitting = ref(false)
 const form = ref({
   product_id: '',
   name: '',
+  specification: '',
+  unit: '',
   price: 0,
   stock_quantity: 0,
   description: ''

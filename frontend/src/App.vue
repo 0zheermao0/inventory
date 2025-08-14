@@ -12,6 +12,7 @@
               <el-dropdown-menu>
                 <el-dropdown-item command="all">打印所有记录</el-dropdown-item>
                 <el-dropdown-item command="selected" :disabled="!selectedTransactionIds.length">打印选中记录</el-dropdown-item>
+                <el-dropdown-item divided command="print-settings">打印设置</el-dropdown-item>
               </el-dropdown-menu>
             </template>
           </el-dropdown>
@@ -29,6 +30,14 @@
               <el-icon><Tickets /></el-icon>
               <span>出入库管理</span>
             </el-menu-item>
+            <el-menu-item index="/customers">
+              <el-icon><User /></el-icon>
+              <span>客户管理</span>
+            </el-menu-item>
+            <el-menu-item index="/store-info">
+              <el-icon><Shop /></el-icon>
+              <span>店铺信息</span>
+            </el-menu-item>
           </el-menu>
         </el-aside>
         
@@ -37,6 +46,27 @@
         </el-main>
       </el-container>
     </el-container>
+    
+    <!-- 打印设置对话框 -->
+    <el-dialog v-model="printSettingsDialogVisible" title="打印设置" width="400px">
+      <el-form label-width="100px">
+        <el-form-item label="纸张规格">
+          <el-select v-model="selectedPaperSize" style="width: 100%;">
+            <el-option label="A4" value="A4" />
+            <el-option label="A5" value="A5" />
+            <el-option label="A3" value="A3" />
+            <el-option label="Letter" value="Letter" />
+            <el-option label="Legal" value="Legal" />
+          </el-select>
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <span class="dialog-footer">
+          <el-button @click="printSettingsDialogVisible = false">取消</el-button>
+          <el-button type="primary" @click="savePrintSettings">保存设置</el-button>
+        </span>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -45,16 +75,23 @@ import { ref, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import axios from 'axios'
-import { Goods, Tickets } from '@element-plus/icons-vue'
+import { Goods, Tickets, User, Shop } from '@element-plus/icons-vue'
 
 const router = useRouter()
 const route = useRoute()
 const activeMenu = ref('/products')
 const printing = ref(false)
 const selectedTransactionIds = ref([])
+const printSettingsDialogVisible = ref(false)
+const selectedPaperSize = ref('A4')
 
+// 从本地存储获取打印设置
 onMounted(() => {
   activeMenu.value = route.path
+  const savedPaperSize = localStorage.getItem('printPaperSize')
+  if (savedPaperSize) {
+    selectedPaperSize.value = savedPaperSize
+  }
 })
 
 const handleMenuSelect = (index) => {
@@ -65,16 +102,30 @@ const handleTransactionSelection = (ids) => {
   selectedTransactionIds.value = ids
 }
 
-const handlePrintCommand = async (command) => {
+const handlePrintCommand = (command) => {
+  if (command === 'print-settings') {
+    printSettingsDialogVisible.value = true
+  } else {
+    printReport(command)
+  }
+}
+
+const savePrintSettings = () => {
+  localStorage.setItem('printPaperSize', selectedPaperSize.value)
+  ElMessage.success('打印设置已保存')
+  printSettingsDialogVisible.value = false
+}
+
+const printReport = async (command) => {
   try {
     printing.value = true
     
     let url
     if (command === 'all') {
-      url = 'http://localhost:8000/api/inventory-transactions/print_report/'
+      url = `http://localhost:8000/api/inventory-transactions/print_report/?paper_size=${selectedPaperSize.value}`
     } else if (command === 'selected' && selectedTransactionIds.value.length > 0) {
       const ids = selectedTransactionIds.value.join(',')
-      url = `http://localhost:8000/api/inventory-transactions/print_report/?ids=${ids}`
+      url = `http://localhost:8000/api/inventory-transactions/print_report/?ids=${ids}&paper_size=${selectedPaperSize.value}`
     } else {
       ElMessage.warning('请先选择要打印的记录')
       return
@@ -88,7 +139,7 @@ const handlePrintCommand = async (command) => {
     const urlBlob = window.URL.createObjectURL(new Blob([response.data]))
     const link = document.createElement('a')
     link.href = urlBlob
-    link.setAttribute('download', 'inventory_report.pdf')
+    link.setAttribute('download', `inventory_report_${selectedPaperSize.value}.pdf`)
     document.body.appendChild(link)
     link.click()
     document.body.removeChild(link)
