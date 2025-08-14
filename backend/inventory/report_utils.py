@@ -4,20 +4,36 @@ from reportlab.lib.pagesizes import A4
 from reportlab.platypus import Table, TableStyle
 from reportlab.lib import colors
 from reportlab.pdfbase import pdfmetrics
-from reportlab.pdfbase.ttfonts import TTFont
-from reportlab.lib.utils import simpleSplit
+from reportlab.pdfbase.cidfonts import UnicodeCIDFont
 from django.http import HttpResponse
 from inventory.models import InventoryTransaction
-import os
-from django.conf import settings
 
 def generate_inventory_report(transactions, report_type="inventory"):
     buffer = io.BytesIO()
     p = canvas.Canvas(buffer, pagesize=A4)
     width, height = A4
     
-    # 使用Helvetica字体作为默认字体
-    font_name = 'Helvetica'
+    # 注册系统中文字体
+    try:
+        # 尝试注册多种中文字体
+        font_options = ['STSong-Light', 'STHeiti', 'STKaiti']
+        font_name = 'Helvetica'  # 默认字体
+        
+        for font in font_options:
+            try:
+                pdfmetrics.registerFont(UnicodeCIDFont(font))
+                font_name = font
+                break
+            except:
+                continue
+                
+        # 如果以上字体都不可用，尝试使用默认的Unicode字体
+        if font_name == 'Helvetica':
+            pdfmetrics.registerFont(UnicodeCIDFont('STSong-Light'))
+            font_name = 'STSong-Light'
+    except:
+        # 如果所有中文字体都不可用，使用默认字体
+        font_name = 'Helvetica'
     
     # 添加标题
     p.setFont(font_name, 16)
@@ -72,13 +88,17 @@ def generate_inventory_report(transactions, report_type="inventory"):
         ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
         ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
         ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-        ('FONTNAME', (0, 0), (-1, 0), font_name),
+        ('FONTNAME', (0, 0), (-1, 0), font_name if font_name != 'Helvetica' else 'Helvetica'),
         ('FONTSIZE', (0, 0), (-1, 0), 10),
         ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
         ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
         ('GRID', (0, 0), (-1, -1), 1, colors.black),
         ('FONTSIZE', (0, 1), (-1, -1), 8),
     ]
+    
+    # 如果使用中文字体，设置所有单元格的字体
+    if font_name != 'Helvetica':
+        table_style.append(('FONTNAME', (0, 1), (-1, -1), font_name))
     
     table.setStyle(TableStyle(table_style))
     
