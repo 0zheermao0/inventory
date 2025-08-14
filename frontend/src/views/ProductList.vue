@@ -202,7 +202,7 @@ const exportProducts = async () => {
 }
 
 const downloadProductTemplate = async () => {
-  try:
+  try {
     const response = await axios.get('http://localhost:8000/api/inventory-transactions/download_product_template/', {
       responseType: 'blob'
     })
