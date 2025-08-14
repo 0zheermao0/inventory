@@ -198,7 +198,7 @@
             </el-table-column>
             <el-table-column prop="total_amount" label="总金额" width="100" align="right">
               <template #default="scope">
-                ¥{{ scope.row.total_amount.toFixed(2) }}
+                ¥{{ formatAmount(scope.row.total_amount) }}
               </template>
             </el-table-column>
             <el-table-column prop="transaction_date" label="操作时间" width="160">
@@ -236,19 +236,19 @@
         <el-table-column prop="quantity" label="数量" width="80" align="right" />
         <el-table-column prop="unit_price" label="单价" width="100" align="right">
           <template #default="scope">
-            ¥{{ scope.row.unit_price.toFixed(2) }}
+            ¥{{ formatAmount(scope.row.unit_price) }}
           </template>
         </el-table-column>
         <el-table-column prop="total_price" label="金额" width="100" align="right">
           <template #default="scope">
-            ¥{{ scope.row.total_price.toFixed(2) }}
+            ¥{{ formatAmount(scope.row.total_price) }}
           </template>
         </el-table-column>
         <el-table-column prop="remarks" label="备注" />
       </el-table>
       
       <div style="margin-top: 20px; text-align: right;">
-        <strong>总金额: ¥{{ currentTransaction.total_amount.toFixed(2) }}</strong>
+        <strong>总金额: ¥{{ formatAmount(currentTransaction.total_amount) }}</strong>
       </div>
       
       <template #footer>
@@ -469,6 +469,14 @@ const handleProductChange = (productId, index) => {
     // 更新单价为选中商品的价格
     form.value.items[index].unit_price = selectedProduct.price
   }
+}
+
+// 格式化金额，处理null或undefined值
+const formatAmount = (amount) => {
+  if (amount === null || amount === undefined || isNaN(amount)) {
+    return '0.00'
+  }
+  return parseFloat(amount).toFixed(2)
 }
 
 const fetchTransactions = async () => {
@@ -725,6 +733,7 @@ const importTransactions = async () => {
 }
 
 const formatDate = (dateString) => {
+  if (!dateString) return ''
   const date = new Date(dateString)
   return date.toLocaleString('zh-CN', {
     year: 'numeric',

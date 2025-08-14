@@ -31,7 +31,7 @@
         <el-table-column prop="unit" label="单位" width="80" />
         <el-table-column prop="price" label="单价" width="120">
           <template #default="scope">
-            ¥{{ scope.row.price }}
+            ¥{{ formatAmount(scope.row.price) }}
           </template>
         </el-table-column>
         <el-table-column prop="stock_quantity" label="库存数量" width="120" />
@@ -166,6 +166,14 @@ const deleteProduct = async (product) => {
   }
 }
 
+// 格式化金额，处理null或undefined值
+const formatAmount = (amount) => {
+  if (amount === null || amount === undefined || isNaN(amount)) {
+    return '0.00'
+  }
+  return parseFloat(amount).toFixed(2)
+}
+
 const handleProductDropdownCommand = (command) => {
   switch (command) {
     case 'export':
@@ -263,6 +271,7 @@ const importProducts = async () => {
 }
 
 const formatDate = (dateString) => {
+  if (!dateString) return ''
   const date = new Date(dateString)
   return date.toLocaleString('zh-CN')
 }
