@@ -2,7 +2,7 @@
   <div>
     <el-row :gutter="20">
       <!-- In/Out Form -->
-      <el-col :span="12">
+      <el-col :span="10">
         <el-card>
           <template #header>
             <h3>{{ form.transaction_type === 'IN' ? '入库' : '出库' }}</h3>
@@ -118,19 +118,30 @@
       </el-col>
       
       <!-- Transaction List -->
-      <el-col :span="12">
+      <el-col :span="14">
         <el-card>
           <template #header>
             <div class="card-header">
               <h3>出入库记录</h3>
-              <div>
-                <el-button type="success" @click="exportTransactions" style="margin-right: 10px;">导出订单</el-button>
-                <el-button type="primary" @click="importTransactionsDialogVisible = true" style="margin-right: 10px;">导入订单</el-button>
-                <el-select v-model="filterType" placeholder="类型筛选" style="width: 120px; margin-right: 10px;" @change="fetchTransactions">
+              <div class="header-actions">
+                <el-button type="success" @click="exportTransactions" size="small">导出订单</el-button>
+                <el-button type="primary" @click="importTransactionsDialogVisible = true" size="small">导入订单</el-button>
+                <el-button type="success" @click="printSelected" :disabled="selectedTransactions.length === 0" size="small">打印选中</el-button>
+              </div>
+            </div>
+          </template>
+          
+          <!-- 筛选区域 -->
+          <div class="filter-section">
+            <el-row :gutter="10">
+              <el-col :span="4">
+                <el-select v-model="filterType" placeholder="类型" @change="fetchTransactions" style="width: 100%;">
                   <el-option label="全部" value="" />
                   <el-option label="入库" value="IN" />
                   <el-option label="出库" value="OUT" />
                 </el-select>
+              </el-col>
+              <el-col :span="6">
                 <el-date-picker
                   v-model="dateRange"
                   type="daterange"
@@ -138,19 +149,23 @@
                   start-placeholder="开始日期"
                   end-placeholder="结束日期"
                   value-format="YYYY-MM-DD"
-                  style="width: 240px; margin-right: 10px;"
+                  style="width: 100%;"
                   @change="fetchTransactions"
+                  size="small"
                 />
+              </el-col>
+              <el-col :span="5">
                 <el-select 
                   v-model="filterCustomer" 
                   filterable 
                   remote 
                   :remote-method="searchCustomersForFilter" 
                   :loading="customerLoading" 
-                  placeholder="选择客户"
-                  style="width: 150px; margin-right: 10px;"
+                  placeholder="客户"
                   clearable
                   @change="fetchTransactions"
+                  style="width: 100%;"
+                  size="small"
                 >
                   <el-option
                     v-for="item in customerOptions"
@@ -159,27 +174,31 @@
                     :value="item.id"
                   />
                 </el-select>
-                <el-input v-model="searchKeyword" placeholder="搜索单据" style="width: 200px; margin-right: 10px;" @keyup.enter="fetchTransactions" />
-                <el-button type="primary" @click="fetchTransactions">搜索</el-button>
-                <el-button type="success" @click="printSelected" :disabled="selectedTransactions.length === 0" style="margin-left: 10px;">打印选中</el-button>
-              </div>
-            </div>
-          </template>
+              </el-col>
+              <el-col :span="6">
+                <el-input v-model="searchKeyword" placeholder="搜索单据号码或客户" @keyup.enter="fetchTransactions" size="small" />
+              </el-col>
+              <el-col :span="3">
+                <el-button type="primary" @click="fetchTransactions" size="small">搜索</el-button>
+              </el-col>
+            </el-row>
+          </div>
           
-          <el-table :data="transactions" stripe style="width: 100%" v-loading="loading" height="400" @selection-change="handleSelectionChange">
+          <!-- 交易记录表格 -->
+          <el-table :data="transactions" stripe style="width: 100%" v-loading="loading" height="500" @selection-change="handleSelectionChange">
             <el-table-column type="selection" width="55" />
             <el-table-column prop="document_number" label="单据号码" width="150" />
             <el-table-column prop="customer_name" label="客户" width="120" />
-            <el-table-column label="操作类型" width="80">
+            <el-table-column label="操作类型" width="80" align="center">
               <template #default="scope">
-                <el-tag :type="scope.row.transaction_type === 'IN' ? 'success' : 'danger'">
+                <el-tag :type="scope.row.transaction_type === 'IN' ? 'success' : 'danger'" size="small">
                   {{ scope.row.transaction_type === 'IN' ? '入库' : '出库' }}
                 </el-tag>
               </template>
             </el-table-column>
-            <el-table-column prop="total_amount" label="总金额" width="80">
+            <el-table-column prop="total_amount" label="总金额" width="100" align="right">
               <template #default="scope">
-                ¥{{ scope.row.total_amount }}
+                ¥{{ scope.row.total_amount.toFixed(2) }}
               </template>
             </el-table-column>
             <el-table-column prop="transaction_date" label="操作时间" width="160">
@@ -187,7 +206,7 @@
                 {{ formatDate(scope.row.transaction_date) }}
               </template>
             </el-table-column>
-            <el-table-column label="操作" width="150">
+            <el-table-column label="操作" width="150" align="center">
               <template #default="scope">
                 <el-button size="small" @click="viewTransaction(scope.row)">查看</el-button>
                 <el-button size="small" type="danger" @click="deleteTransaction(scope.row)">删除</el-button>
@@ -202,6 +221,7 @@
               :page-size="pageSize"
               :total="total"
               layout="total, prev, pager, next"
+              background
             />
           </div>
         </el-card>
@@ -209,26 +229,26 @@
     </el-row>
     
     <!-- 查看单据详情对话框 -->
-    <el-dialog v-model="detailDialogVisible" :title="`单据详情 - ${currentTransaction.document_number}`" width="800px">
+    <el-dialog v-model="detailDialogVisible" :title="`单据详情 - ${currentTransaction.document_number}`" width="900px">
       <el-table :data="currentTransaction.items" style="width: 100%;">
         <el-table-column prop="product_id" label="商品编码" width="120" />
         <el-table-column prop="product_name" label="商品名称" width="150" />
-        <el-table-column prop="quantity" label="数量" width="80" />
-        <el-table-column prop="unit_price" label="单价" width="80">
+        <el-table-column prop="quantity" label="数量" width="80" align="right" />
+        <el-table-column prop="unit_price" label="单价" width="100" align="right">
           <template #default="scope">
-            ¥{{ scope.row.unit_price }}
+            ¥{{ scope.row.unit_price.toFixed(2) }}
           </template>
         </el-table-column>
-        <el-table-column prop="total_price" label="金额" width="80">
+        <el-table-column prop="total_price" label="金额" width="100" align="right">
           <template #default="scope">
-            ¥{{ scope.row.total_price }}
+            ¥{{ scope.row.total_price.toFixed(2) }}
           </template>
         </el-table-column>
         <el-table-column prop="remarks" label="备注" />
       </el-table>
       
       <div style="margin-top: 20px; text-align: right;">
-        <strong>总金额: ¥{{ currentTransaction.total_amount }}</strong>
+        <strong>总金额: ¥{{ currentTransaction.total_amount.toFixed(2) }}</strong>
       </div>
       
       <template #footer>
@@ -724,9 +744,37 @@ const formatDate = (dateString) => {
   flex-wrap: wrap;
 }
 
-.card-header > div {
+.header-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.filter-section {
+  padding: 15px 0;
+  background-color: #f5f7fa;
+  border-radius: 4px;
+  margin-bottom: 15px;
+  padding: 15px;
+}
+
+.filter-section .el-row {
+  align-items: center;
+}
+
+.filter-section .el-col {
   display: flex;
   align-items: center;
-  flex-wrap: wrap;
+}
+
+.filter-section .el-button {
+  width: 100%;
+}
+
+:deep(.el-table th) {
+  background-color: #f5f7fa;
+}
+
+:deep(.el-table .el-table__cell) {
+  padding: 6px 0;
 }
 </style>
